@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Lucas Tracker</title>
+<title>Luca's Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -99,7 +99,7 @@ body{font-family:'Nunito',sans-serif;background:#EDF7F4;color:#1a2e35;min-height
       <div class="logo">
         <div class="logo-dot"><i class="ti ti-heart"></i></div>
         <div>
-          <div class="logo-name">Lucas Tracker</div>
+          <div class="logo-name">Luca's Tracker</div>
           <div class="baby-name">Baby vitals journal</div>
         </div>
       </div>
@@ -132,6 +132,16 @@ body{font-family:'Nunito',sans-serif;background:#EDF7F4;color:#1a2e35;min-height
     <!-- Feeding -->
     <div class="card">
       <div class="card-title"><i class="ti ti-tool-kitchen-2"></i> Feeding</div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label class="form-label">Date</label>
+          <input class="form-input" type="date" id="f-date"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Time</label>
+          <input class="form-input" type="time" id="f-time"/>
+        </div>
+      </div>
       <div class="form-row">
         <label class="form-label">Feeding type</label>
         <select class="form-input" id="f-type">
@@ -165,14 +175,21 @@ body{font-family:'Nunito',sans-serif;background:#EDF7F4;color:#1a2e35;min-height
     <!-- Sleep -->
     <div class="card">
       <div class="card-title"><i class="ti ti-moon"></i> Sleep</div>
+      <div class="form-row">
+        <label class="form-label">Event</label>
+        <div class="toggle-row" id="sleep-event-row">
+          <div class="toggle-opt sel" onclick="selectSleepEvent(this,'Fell asleep')">😴 Fell asleep</div>
+          <div class="toggle-opt" onclick="selectSleepEvent(this,'Woke up')">☀️ Woke up</div>
+        </div>
+      </div>
       <div class="form-row-2">
         <div class="form-row">
-          <label class="form-label">Start time</label>
-          <input class="form-input" type="time" id="s-start"/>
+          <label class="form-label">Date</label>
+          <input class="form-input" type="date" id="s-date"/>
         </div>
         <div class="form-row">
-          <label class="form-label">End time</label>
-          <input class="form-input" type="time" id="s-end"/>
+          <label class="form-label">Time</label>
+          <input class="form-input" type="time" id="s-time"/>
         </div>
       </div>
       <div class="form-row">
@@ -203,7 +220,7 @@ body{font-family:'Nunito',sans-serif;background:#EDF7F4;color:#1a2e35;min-height
         <input class="form-input" type="text" id="s-notes" placeholder="e.g. woke twice, slept through"/>
       </div>
       <button class="submit-btn" onclick="logEntry('sleep')" id="btn-sleep">
-        <i class="ti ti-device-floppy"></i> Log Sleep
+        <i class="ti ti-device-floppy"></i> Log Sleep Event
       </button>
     </div>
 
@@ -354,11 +371,24 @@ function init(){
   renderDashboard();
 }
 
+let selectedSleepEvent='Fell asleep';
+
+function selectSleepEvent(el,val){
+  document.querySelectorAll('#sleep-event-row .toggle-opt').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedSleepEvent=val;
+}
+
 function setDefaultTimes(){
   const n=new Date();
   const hh=String(n.getHours()).padStart(2,'0');
   const mm=String(n.getMinutes()).padStart(2,'0');
-  document.getElementById('s-start').value=`${hh}:${mm}`;
+  const dateStr=n.toISOString().slice(0,10);
+  const timeStr=`${hh}:${mm}`;
+  document.getElementById('f-date').value=dateStr;
+  document.getElementById('f-time').value=timeStr;
+  document.getElementById('s-date').value=dateStr;
+  document.getElementById('s-time').value=timeStr;
 }
 
 function updateWarning(){
@@ -399,28 +429,22 @@ async function logEntry(type){
   let row,entry;
 
   if(type==='feeding'){
+    const fDate=document.getElementById('f-date').value||todayStr();
+    const fTime=document.getElementById('f-time').value||fmtTime(ts);
     const t=document.getElementById('f-type').value;
     const amt=document.getElementById('f-amount').value;
     const dur=document.getElementById('f-duration').value;
     const notes=document.getElementById('f-notes').value;
-    row=[todayStr(),fmtTime(ts),t,amt,dur,notes,'','Complete'];
+    row=[fDate,fTime,t,amt,dur,notes,'','Complete'];
     entry={type,ts,label:t||'Feeding',sub:amt?`${amt} oz`:dur?`${dur} min`:'',notes};
   } else if(type==='sleep'){
-    const start=document.getElementById('s-start').value;
-    const end=document.getElementById('s-end').value;
+    const sDate=document.getElementById('s-date').value||todayStr();
+    const sTime=document.getElementById('s-time').value||fmtTime(ts);
     const loc=document.getElementById('s-location').value;
     const qual=document.getElementById('s-quality').value;
     const notes=document.getElementById('s-notes').value;
-    let dur='';
-    if(start&&end){
-      const[sh,sm]=start.split(':').map(Number);
-      const[eh,em]=end.split(':').map(Number);
-      let mins=(eh*60+em)-(sh*60+sm);
-      if(mins<0)mins+=1440;
-      dur=(mins/60).toFixed(1);
-    }
-    row=[todayStr(),start,end,dur,loc,qual,notes];
-    entry={type,ts,label:loc||'Sleep',sub:dur?`${dur} hrs`:'',notes};
+    row=[sDate,sTime,selectedSleepEvent,loc,qual,notes];
+    entry={type,ts,label:selectedSleepEvent,sub:loc||'',notes};
   } else {
     const color=document.getElementById('d-color').value;
     const cons=document.getElementById('d-consistency').value;
@@ -458,7 +482,7 @@ function resetForm(type){
     diaper:['d-color','d-consistency','d-notes']
   };
   (ids[type]||[]).forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  if(type==='sleep')setDefaultTimes();
+  setDefaultTimes();
 }
 
 function saveSettings(){

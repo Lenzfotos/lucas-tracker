@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Lucas Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',sans-serif;background:#EDF7F4;color:#1a2e35;min-height:100vh;-webkit-font-smoothing:antialiased}
+:root{
+  --teal:#1D9E75;--teal-light:#E1F5EE;--teal-mid:#9FE1CB;--teal-dark:#085041;
+  --white:#fff;--gray:#f0f7f5;--text:#1a2e35;--muted:#6b8a92;
+  --border:#c8e6de;--radius:16px;--radius-sm:11px;
+}
+.app{max-width:500px;margin:0 auto;padding:0 0 100px}
+/* Header */
+.header{background:var(--white);padding:18px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:0 1px 8px rgba(29,158,117,.06)}
+.header-top{display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-dot{width:32px;height:32px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.logo-dot i{color:#fff;font-size:16px}
+.logo-name{font-size:18px;font-weight:700;color:var(--teal)}
+.baby-name{font-size:12px;color:var(--muted);font-weight:500}
+.sync-status{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;font-weight:500}
+/* Nav */
+.nav{display:flex;background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:69px;z-index:99}
+.nav-btn{flex:1;padding:12px 4px 10px;border:none;background:none;font-size:11px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;border-bottom:2.5px solid transparent;transition:all .2s;font-family:'Nunito',sans-serif;font-weight:600}
+.nav-btn.active{color:var(--teal);border-bottom-color:var(--teal)}
+.nav-btn i{font-size:21px}
+/* Pages */
+.page{display:none;padding:16px}
+.page.active{display:block}
+/* Cards */
+.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(29,158,117,.04)}
+.card-title{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title i{color:var(--teal);font-size:18px}
+/* Forms */
+.form-row{margin-bottom:13px}
+.form-label{font-size:12px;color:var(--muted);margin-bottom:5px;display:block;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+.form-input{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--gray);outline:none;font-family:'Nunito',sans-serif;font-weight:500;appearance:none;-webkit-appearance:none;transition:border .15s}
+.form-input:focus{border-color:var(--teal);background:#fff}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.submit-btn{width:100%;padding:14px;background:var(--teal);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;font-family:'Nunito',sans-serif;letter-spacing:.01em}
+.submit-btn:active{opacity:.85}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed}
+/* Toggle options */
+.toggle-row{display:flex;gap:8px;flex-wrap:wrap}
+.toggle-opt{padding:9px 16px;border-radius:22px;border:1.5px solid var(--border);font-size:13px;cursor:pointer;background:var(--gray);color:var(--muted);transition:all .15s;font-family:'Nunito',sans-serif;font-weight:600}
+.toggle-opt.sel{background:var(--teal-light);border-color:var(--teal);color:var(--teal)}
+/* Stats */
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat{background:linear-gradient(135deg,var(--teal-light) 0%,#d4f0e8 100%);border-radius:var(--radius-sm);padding:16px;text-align:center;border:1px solid var(--teal-mid)}
+.stat-val{font-size:28px;font-weight:700;color:var(--teal);line-height:1}
+.stat-label{font-size:11px;color:#0F6E56;margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.chart-wrap{position:relative;height:180px;margin-top:8px}
+/* History */
+.log-entry{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.log-entry:last-child{border-bottom:none}
+.log-icon{width:38px;height:38px;border-radius:50%;background:var(--teal-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--teal-mid)}
+.log-icon i{color:var(--teal);font-size:18px}
+.log-detail{flex:1;min-width:0}
+.log-main{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-sub{font-size:12px;color:var(--muted);margin-top:2px;font-weight:500}
+.log-time{font-size:11px;color:var(--muted);flex-shrink:0;text-align:right;font-weight:600}
+/* Segment */
+.segment{display:flex;background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:14px}
+.seg-btn{flex:1;padding:8px;border:none;background:none;border-radius:9px;font-size:13px;cursor:pointer;color:var(--muted);transition:all .2s;font-family:'Nunito',sans-serif;font-weight:600}
+.seg-btn.active{background:var(--teal);color:#fff}
+/* Warning */
+.warning-banner{background:#fff8e1;border:1px solid #ffe082;border-radius:var(--radius-sm);padding:13px;margin-bottom:14px;font-size:13px;color:#7a5c00;display:flex;gap:9px;align-items:flex-start;font-weight:500}
+/* Config */
+.config-note{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;font-weight:500}
+.config-note a{color:var(--teal);font-weight:600}
+/* Spinner */
+.spinner{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Toast */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--teal-dark);color:#fff;padding:13px 24px;border-radius:30px;font-size:14px;font-weight:600;display:none;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(8,80,65,.3);font-family:'Nunito',sans-serif}
+.toast.show{display:block;animation:slideup .3s ease}
+@keyframes slideup{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* Safe area for mobile */
+@supports(padding:env(safe-area-inset-bottom)){
+  .app{padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+  .nav{padding-bottom:env(safe-area-inset-bottom)}
+}
+/* Empty state */
+.empty{text-align:center;color:var(--muted);padding:28px 10px;font-size:14px;font-weight:500}
+.empty i{font-size:36px;display:block;margin-bottom:8px;color:var(--teal-mid)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-dot"><i class="ti ti-heart"></i></div>
+        <div>
+          <div class="logo-name">Lucas Tracker</div>
+          <div class="baby-name">Baby vitals journal</div>
+        </div>
+      </div>
+      <div class="sync-status" id="syncStatus"><i class="ti ti-cloud-off"></i> <span>Local only</span></div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showPage('log')" id="nav-log">
+      <i class="ti ti-plus-circle"></i>Log
+    </button>
+    <button class="nav-btn" onclick="showPage('dashboard')" id="nav-dashboard">
+      <i class="ti ti-chart-bar"></i>Dashboard
+    </button>
+    <button class="nav-btn" onclick="showPage('history')" id="nav-history">
+      <i class="ti ti-history"></i>History
+    </button>
+    <button class="nav-btn" onclick="showPage('settings')" id="nav-settings">
+      <i class="ti ti-settings"></i>Settings
+    </button>
+  </nav>
+
+  <!-- LOG PAGE -->
+  <div class="page active" id="page-log">
+    <div id="warningBanner" style="display:none" class="warning-banner">
+      <i class="ti ti-alert-triangle" style="flex-shrink:0;font-size:17px;margin-top:1px"></i>
+      <span>Google Sheets not connected. Entries save locally on this device only. Go to <strong>Settings</strong> to add your API key and sync with all caregivers.</span>
+    </div>
+
+    <!-- Feeding -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-tool-kitchen-2"></i> Feeding</div>
+      <div class="form-row">
+        <label class="form-label">Feeding type</label>
+        <select class="form-input" id="f-type">
+          <option value="">Select type…</option>
+          <option>Breastmilk – Left</option>
+          <option>Breastmilk – Right</option>
+          <option>Breastmilk – Both sides</option>
+          <option>Bottle – Breastmilk</option>
+          <option>Bottle – Formula</option>
+        </select>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label class="form-label">Amount (oz)</label>
+          <input class="form-input" type="number" id="f-amount" placeholder="e.g. 2.5" step="0.5" min="0"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Duration (min)</label>
+          <input class="form-input" type="number" id="f-duration" placeholder="e.g. 15" min="0"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Notes (optional)</label>
+        <input class="form-input" type="text" id="f-notes" placeholder="e.g. fussy, switched sides"/>
+      </div>
+      <button class="submit-btn" onclick="logEntry('feeding')" id="btn-feeding">
+        <i class="ti ti-device-floppy"></i> Log Feeding
+      </button>
+    </div>
+
+    <!-- Sleep -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-moon"></i> Sleep</div>
+      <div class="form-row-2">
+        <div class="form-row">
+          <label class="form-label">Start time</label>
+          <input class="form-input" type="time" id="s-start"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">End time</label>
+          <input class="form-input" type="time" id="s-end"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Sleep location</label>
+        <select class="form-input" id="s-location">
+          <option value="">Select location…</option>
+          <option>Crib</option>
+          <option>Bassinet</option>
+          <option>Contact nap</option>
+          <option>Car seat</option>
+          <option>Stroller</option>
+          <option>Swing</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Quality</label>
+        <select class="form-input" id="s-quality">
+          <option value="">Select quality…</option>
+          <option>Great</option>
+          <option>Easy</option>
+          <option>Fussy start</option>
+          <option>Woke early</option>
+          <option>Restless</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Notes (optional)</label>
+        <input class="form-input" type="text" id="s-notes" placeholder="e.g. woke twice, slept through"/>
+      </div>
+      <button class="submit-btn" onclick="logEntry('sleep')" id="btn-sleep">
+        <i class="ti ti-device-floppy"></i> Log Sleep
+      </button>
+    </div>
+
+    <!-- Diaper -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-droplet"></i> Diaper</div>
+      <div class="form-row">
+        <label class="form-label">Type</label>
+        <div class="toggle-row" id="diaper-type-row">
+          <div class="toggle-opt sel" onclick="selectDiaper(this,'Wet')">💧 Wet</div>
+          <div class="toggle-opt" onclick="selectDiaper(this,'Dirty')">💩 Dirty</div>
+          <div class="toggle-opt" onclick="selectDiaper(this,'Both')">💧💩 Both</div>
+        </div>
+      </div>
+      <div class="form-row" id="d-color-row" style="display:none">
+        <label class="form-label">Color</label>
+        <select class="form-input" id="d-color">
+          <option value="">Select color…</option>
+          <option>Yellow</option>
+          <option>Green</option>
+          <option>Brown</option>
+          <option>Black / Dark (meconium)</option>
+          <option>Red / Pink</option>
+          <option>Orange</option>
+        </select>
+      </div>
+      <div class="form-row" id="d-consistency-row" style="display:none">
+        <label class="form-label">Consistency</label>
+        <select class="form-input" id="d-consistency">
+          <option value="">Select…</option>
+          <option>Normal</option>
+          <option>Seedy (newborn)</option>
+          <option>Runny / Loose</option>
+          <option>Firm</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Notes (optional)</label>
+        <input class="form-input" type="text" id="d-notes" placeholder="e.g. blowout, rash observed"/>
+      </div>
+      <button class="submit-btn" onclick="logEntry('diaper')" id="btn-diaper">
+        <i class="ti ti-device-floppy"></i> Log Diaper
+      </button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page" id="page-dashboard">
+    <div class="segment">
+      <button class="seg-btn active" onclick="setRange('today',this)">Today</button>
+      <button class="seg-btn" onclick="setRange('week',this)">7 days</button>
+      <button class="seg-btn" onclick="setRange('month',this)">30 days</button>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-val" id="stat-feeds">—</div><div class="stat-label">Feedings</div></div>
+      <div class="stat"><div class="stat-val" id="stat-oz">—</div><div class="stat-label">Oz consumed</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-val" id="stat-sleep">—</div><div class="stat-label">Sleep hrs</div></div>
+      <div class="stat"><div class="stat-val" id="stat-diapers">—</div><div class="stat-label">Diapers</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-chart-line"></i> Feedings per day</div>
+      <div class="chart-wrap"><canvas id="feedChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-moon"></i> Sleep per day (hrs)</div>
+      <div class="chart-wrap"><canvas id="sleepChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-droplet"></i> Diapers per day</div>
+      <div class="chart-wrap"><canvas id="diaperChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="page" id="page-history">
+    <div class="segment">
+      <button class="seg-btn active" onclick="filterHistory('all',this)">All</button>
+      <button class="seg-btn" onclick="filterHistory('feeding',this)">Feeding</button>
+      <button class="seg-btn" onclick="filterHistory('sleep',this)">Sleep</button>
+      <button class="seg-btn" onclick="filterHistory('diaper',this)">Diaper</button>
+    </div>
+    <div class="card">
+      <div id="history-list"><div class="empty"><i class="ti ti-notes"></i>No entries yet. Start logging!</div></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-table"></i> Google Sheets connection</div>
+      <p class="config-note">
+        Connect to your shared Google Sheet so all caregivers see the same data in real time.<br><br>
+        <strong>How to get your API key:</strong><br>
+        1. Go to <a href="https://console.cloud.google.com/projectcreate" target="_blank">console.cloud.google.com/projectcreate</a><br>
+        2. Create a project, then search for <strong>Sheets API</strong> and enable it<br>
+        3. Go to <strong>APIs &amp; Services → Credentials → Create API Key</strong><br>
+        4. Restrict the key to Google Sheets API, then paste it below<br>
+        5. Make sure your sheet is set to <strong>"Anyone with link can edit"</strong>
+      </p>
+      <div class="form-row">
+        <label class="form-label">Google API Key</label>
+        <input class="form-input" type="password" id="cfg-apikey" placeholder="AIza…"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Sheet ID</label>
+        <input class="form-input" type="text" id="cfg-sheetid" value="1-3YuPYacFzbaFjaesVVMcCYT2osnN2mCsuWM5VCQBSk"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Baby's name</label>
+        <input class="form-input" type="text" id="cfg-name" value="Lucas"/>
+      </div>
+      <button class="submit-btn" onclick="saveSettings()">
+        <i class="ti ti-check"></i> Save settings
+      </button>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="ti ti-info-circle"></i> About</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.7;font-weight:500">
+        All entries are appended to your Google Sheet tabs: <strong>Food</strong>, <strong>Sleeping</strong>, and <strong>BM</strong>. Adding new fields in the future will never affect existing data — old rows simply leave new columns blank. Your history is always safe.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SHEET_ID_DEFAULT='1-3YuPYacFzbaFjaesVVMcCYT2osnN2mCsuWM5VCQBSk';
+const TAB_FEED='Food', TAB_SLEEP='Sleeping', TAB_DIAPER='BM';
+let cfg={apiKey:'',sheetId:SHEET_ID_DEFAULT,babyName:'Lucas'};
+let localLog=[];
+let selectedDiaperType='Wet';
+let dashRange='today';
+let histFilter='all';
+let feedChart,sleepChart,diaperChart;
+
+function init(){
+  try{const s=localStorage.getItem('lucas_cfg');if(s)cfg={...cfg,...JSON.parse(s)};}catch(e){}
+  try{const l=localStorage.getItem('lucas_log');if(l)localLog=JSON.parse(l);}catch(e){}
+  document.getElementById('cfg-apikey').value=cfg.apiKey||'';
+  document.getElementById('cfg-sheetid').value=cfg.sheetId||SHEET_ID_DEFAULT;
+  document.getElementById('cfg-name').value=cfg.babyName||'Lucas';
+  updateWarning();
+  setDefaultTimes();
+  renderHistory();
+  renderDashboard();
+}
+
+function setDefaultTimes(){
+  const n=new Date();
+  const hh=String(n.getHours()).padStart(2,'0');
+  const mm=String(n.getMinutes()).padStart(2,'0');
+  document.getElementById('s-start').value=`${hh}:${mm}`;
+}
+
+function updateWarning(){
+  document.getElementById('warningBanner').style.display=cfg.apiKey?'none':'flex';
+  document.getElementById('syncStatus').innerHTML=cfg.apiKey
+    ?'<i class="ti ti-cloud"></i> <span>Sheets connected</span>'
+    :'<i class="ti ti-cloud-off"></i> <span>Local only</span>';
+}
+
+function showPage(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('nav-'+p).classList.add('active');
+  if(p==='dashboard')renderDashboard();
+  if(p==='history')renderHistory();
+}
+
+function selectDiaper(el,val){
+  document.querySelectorAll('.toggle-opt').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedDiaperType=val;
+  const dirty=val!=='Wet';
+  document.getElementById('d-color-row').style.display=dirty?'block':'none';
+  document.getElementById('d-consistency-row').style.display=dirty?'block':'none';
+}
+
+function nowIso(){return new Date().toISOString();}
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function fmtTime(iso){return new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function fmtDate(iso){return new Date(iso).toLocaleDateString([],{month:'short',day:'numeric'});}
+
+async function logEntry(type){
+  const btn=document.getElementById('btn-'+type);
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span> Saving…';
+  const ts=nowIso();
+  let row,entry;
+
+  if(type==='feeding'){
+    const t=document.getElementById('f-type').value;
+    const amt=document.getElementById('f-amount').value;
+    const dur=document.getElementById('f-duration').value;
+    const notes=document.getElementById('f-notes').value;
+    row=[todayStr(),fmtTime(ts),t,amt,dur,notes,'','Complete'];
+    entry={type,ts,label:t||'Feeding',sub:amt?`${amt} oz`:dur?`${dur} min`:'',notes};
+  } else if(type==='sleep'){
+    const start=document.getElementById('s-start').value;
+    const end=document.getElementById('s-end').value;
+    const loc=document.getElementById('s-location').value;
+    const qual=document.getElementById('s-quality').value;
+    const notes=document.getElementById('s-notes').value;
+    let dur='';
+    if(start&&end){
+      const[sh,sm]=start.split(':').map(Number);
+      const[eh,em]=end.split(':').map(Number);
+      let mins=(eh*60+em)-(sh*60+sm);
+      if(mins<0)mins+=1440;
+      dur=(mins/60).toFixed(1);
+    }
+    row=[todayStr(),start,end,dur,loc,qual,notes];
+    entry={type,ts,label:loc||'Sleep',sub:dur?`${dur} hrs`:'',notes};
+  } else {
+    const color=document.getElementById('d-color').value;
+    const cons=document.getElementById('d-consistency').value;
+    const notes=document.getElementById('d-notes').value;
+    row=[todayStr(),fmtTime(ts),selectedDiaperType,color,cons,notes];
+    entry={type,ts,label:selectedDiaperType+' diaper',sub:color||'',notes};
+  }
+
+  localLog.unshift(entry);
+  try{localStorage.setItem('lucas_log',JSON.stringify(localLog.slice(0,500)));}catch(e){}
+
+  let synced=false;
+  if(cfg.apiKey){
+    try{
+      const tab=type==='feeding'?TAB_FEED:type==='sleep'?TAB_SLEEP:TAB_DIAPER;
+      const range=encodeURIComponent(`${tab}!A:Z`);
+      const url=`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${range}:append?valueInputOption=USER_ENTERED&key=${cfg.apiKey}`;
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:[row]})});
+      if(res.ok)synced=true;
+    }catch(e){}
+  }
+
+  showToast(synced?'✓ Saved to Google Sheets!':'✓ Saved locally');
+  resetForm(type);
+  btn.disabled=false;
+  btn.innerHTML=`<i class="ti ti-device-floppy"></i> Log ${type.charAt(0).toUpperCase()+type.slice(1)}`;
+  renderHistory();
+  renderDashboard();
+}
+
+function resetForm(type){
+  const ids={
+    feeding:['f-type','f-amount','f-duration','f-notes'],
+    sleep:['s-location','s-quality','s-notes'],
+    diaper:['d-color','d-consistency','d-notes']
+  };
+  (ids[type]||[]).forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  if(type==='sleep')setDefaultTimes();
+}
+
+function saveSettings(){
+  cfg.apiKey=document.getElementById('cfg-apikey').value.trim();
+  cfg.sheetId=document.getElementById('cfg-sheetid').value.trim()||SHEET_ID_DEFAULT;
+  cfg.babyName=document.getElementById('cfg-name').value.trim()||'Lucas';
+  try{localStorage.setItem('lucas_cfg',JSON.stringify(cfg));}catch(e){}
+  updateWarning();
+  showToast('Settings saved!');
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function setRange(r,el){
+  dashRange=r;
+  document.querySelectorAll('#page-dashboard .seg-btn').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  renderDashboard();
+}
+
+function filterHistory(f,el){
+  histFilter=f;
+  document.querySelectorAll('#page-history .seg-btn').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  renderHistory();
+}
+
+function renderHistory(){
+  const filtered=histFilter==='all'?localLog:localLog.filter(e=>e.type===histFilter);
+  const list=document.getElementById('history-list');
+  if(!filtered.length){
+    list.innerHTML='<div class="empty"><i class="ti ti-notes"></i>No entries yet. Start logging!</div>';
+    return;
+  }
+  const icons={feeding:'ti-tool-kitchen-2',sleep:'ti-moon',diaper:'ti-droplet'};
+  list.innerHTML=filtered.slice(0,80).map(e=>`
+    <div class="log-entry">
+      <div class="log-icon"><i class="ti ${icons[e.type]||'ti-notes'}"></i></div>
+      <div class="log-detail">
+        <div class="log-main">${e.label}</div>
+        <div class="log-sub">${[e.sub,e.notes].filter(Boolean).join(' · ')}</div>
+      </div>
+      <div class="log-time">${fmtDate(e.ts)}<br>${fmtTime(e.ts)}</div>
+    </div>
+  `).join('');
+}
+
+function renderDashboard(){
+  const days=dashRange==='today'?1:dashRange==='week'?7:30;
+  const cutoff=new Date(Date.now()-days*86400000);
+  const filtered=localLog.filter(e=>new Date(e.ts)>=cutoff);
+  const feeds=filtered.filter(e=>e.type==='feeding');
+  const sleeps=filtered.filter(e=>e.type==='sleep');
+  const diapers=filtered.filter(e=>e.type==='diaper');
+
+  const totalOz=feeds.reduce((s,e)=>{const m=e.sub?.match(/^([\d.]+)\s*oz/);return s+(m?parseFloat(m[1]):0);},0);
+  const totalSleep=sleeps.reduce((s,e)=>{const m=e.sub?.match(/^([\d.]+)/);return s+(m?parseFloat(m[1]):0);},0);
+
+  document.getElementById('stat-feeds').textContent=feeds.length||'0';
+  document.getElementById('stat-oz').textContent=totalOz>0?totalOz.toFixed(1):'—';
+  document.getElementById('stat-sleep').textContent=totalSleep>0?totalSleep.toFixed(1):'—';
+  document.getElementById('stat-diapers').textContent=diapers.length||'0';
+
+  const numDays=Math.min(days,7);
+  const labels=[],feedData=[],sleepData=[],diaperData=[];
+  for(let i=numDays-1;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const dk=d.toISOString().slice(0,10);
+    labels.push(i===0?'Today':d.toLocaleDateString([],{weekday:'short'}));
+    feedData.push(localLog.filter(e=>e.type==='feeding'&&e.ts.slice(0,10)===dk).length);
+    const daySlp=localLog.filter(e=>e.type==='sleep'&&e.ts.slice(0,10)===dk);
+    sleepData.push(parseFloat(daySlp.reduce((s,e)=>{const m=e.sub?.match(/^([\d.]+)/);return s+(m?parseFloat(m[1]):0);},0).toFixed(1)));
+    diaperData.push(localLog.filter(e=>e.type==='diaper'&&e.ts.slice(0,10)===dk).length);
+  }
+
+  const teal='#1D9E75';
+  const opts=(color)=>({
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{display:false},ticks:{font:{size:11,family:"'Nunito',sans-serif"},color:'#6b8a92'}},
+      y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{size:11,family:"'Nunito',sans-serif"},color:'#6b8a92'},beginAtZero:true}
+    },
+    elements:{line:{tension:.4},point:{radius:4,backgroundColor:color}}
+  });
+
+  if(feedChart)feedChart.destroy();
+  if(sleepChart)sleepChart.destroy();
+  if(diaperChart)diaperChart.destroy();
+
+  feedChart=new Chart(document.getElementById('feedChart'),{type:'line',data:{labels,datasets:[{data:feedData,borderColor:teal,backgroundColor:'rgba(29,158,117,.1)',fill:true,borderWidth:2}]},options:opts(teal)});
+  sleepChart=new Chart(document.getElementById('sleepChart'),{type:'bar',data:{labels,datasets:[{data:sleepData,backgroundColor:'rgba(29,158,117,.22)',borderColor:teal,borderWidth:1.5,borderRadius:6}]},options:opts(teal)});
+  diaperChart=new Chart(document.getElementById('diaperChart'),{type:'bar',data:{labels,datasets:[{data:diaperData,backgroundColor:'rgba(29,158,117,.22)',borderColor:teal,borderWidth:1.5,borderRadius:6}]},options:opts(teal)});
+}
+
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>

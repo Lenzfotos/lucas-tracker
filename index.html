@@ -203,7 +203,7 @@ window.showPage=p=>{
   document.getElementById('page-'+p).classList.add('active');
   const nb=document.getElementById('nav-'+p);if(nb)nb.classList.add('active');
   const sb=document.getElementById('snav-'+p);if(sb)sb.classList.add('active');
-  if(p==='dashboard')renderDashboard();
+  if(p==='dashboard') requestAnimationFrame(()=>setTimeout(renderDashboard,50));
   if(p==='history')renderHistory();
   if(p==='settings'){updateEntryCount();renderWeightPreview();}
 };
@@ -484,7 +484,21 @@ function renderDashboard(){
   }
   const teal='#1D9E75';
   const bOpts=(yMax)=>({responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10,family:"'Nunito'"},color:'#6b8a92',maxRotation:0,autoSkip:true,maxTicksLimit:12}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11,family:"'Nunito'"},color:'#6b8a92'},beginAtZero:true,max:yMax||undefined}}});
-  if(feedChart)feedChart.destroy();if(sleepChart)sleepChart.destroy();if(diaperChart)diaperChart.destroy();
+
+  // Destroy old charts and replace canvases with fresh ones to prevent mobile Safari blank chart bug
+  function freshCanvas(id){
+    if(window[id+'_chart']){try{window[id+'_chart'].destroy();}catch(e){}}
+    const wrap=document.getElementById(id)?.parentNode;
+    if(!wrap)return null;
+    const old=document.getElementById(id);
+    if(old)old.remove();
+    const c=document.createElement('canvas');c.id=id;wrap.appendChild(c);
+    return c;
+  }
+  const fcEl=freshCanvas('feedChart');
+  const scEl=freshCanvas('sleepChart');
+  const dcEl=freshCanvas('diaperChart');
+  if(!fcEl||!scEl||!dcEl)return;
   let labels=[],feedData=[],diaperData=[];
   const len_=n=>Array(n).fill;
   if(mode==='today'){
@@ -521,9 +535,12 @@ function renderDashboard(){
   const yMF=isToday?Math.max(14,Math.ceil((Math.max(...feedData)||0)+2)):16;
   const yMD=isToday?Math.max(10,Math.ceil((Math.max(...diaperData)||0)+2)):12;
   const cfg2=(ds,yMax)=>({type:'bar',data:{labels,datasets:ds},options:{...bOpts(yMax),plugins:{legend:{display:false}}}});
-  feedChart=new Chart(document.getElementById('feedChart'),cfg2([...band(fb.min,fb.max,'rgba(255,180,0,0.6)','rgba(255,200,0,0.08)'),{label:'Baby',data:feedData,type:'line',borderColor:teal,backgroundColor:'rgba(29,158,117,0.12)',fill:isToday,borderWidth:2.5,pointBackgroundColor:teal,pointBorderColor:teal,pointRadius:isToday?2:4,tension:.4}],yMF));
-  sleepChart=new Chart(document.getElementById('sleepChart'),cfg2([...band(sb.min,sb.max,'rgba(100,149,237,0.6)','rgba(100,149,237,0.08)'),{label:'Baby',data:Array(len).fill(0),type:'bar',backgroundColor:'rgba(29,158,117,0.25)',borderColor:teal,borderWidth:1.5,borderRadius:6}],20));
-  diaperChart=new Chart(document.getElementById('diaperChart'),cfg2([...band(db2.min,db2.max,'rgba(255,120,100,0.6)','rgba(255,120,100,0.08)'),{label:'Baby',data:diaperData,type:isToday?'line':'bar',borderColor:teal,backgroundColor:isToday?'rgba(29,158,117,0.12)':'rgba(29,158,117,0.25)',fill:isToday,borderWidth:isToday?2.5:1.5,borderRadius:isToday?0:6,pointBackgroundColor:teal,pointBorderColor:teal,pointRadius:isToday?2:4,tension:.4}],yMD));
+  feedChart=new Chart(fcEl,cfg2([...band(fb.min,fb.max,'rgba(255,180,0,0.6)','rgba(255,200,0,0.08)'),{label:'Baby',data:feedData,type:'line',borderColor:teal,backgroundColor:'rgba(29,158,117,0.12)',fill:isToday,borderWidth:2.5,pointBackgroundColor:teal,pointBorderColor:teal,pointRadius:isToday?2:4,tension:.4}],yMF));
+  window['feedChart_chart']=feedChart;
+  sleepChart=new Chart(scEl,cfg2([...band(sb.min,sb.max,'rgba(100,149,237,0.6)','rgba(100,149,237,0.08)'),{label:'Baby',data:Array(len).fill(0),type:'bar',backgroundColor:'rgba(29,158,117,0.25)',borderColor:teal,borderWidth:1.5,borderRadius:6}],20));
+  window['sleepChart_chart']=sleepChart;
+  diaperChart=new Chart(dcEl,cfg2([...band(db2.min,db2.max,'rgba(255,120,100,0.6)','rgba(255,120,100,0.08)'),{label:'Baby',data:diaperData,type:isToday?'line':'bar',borderColor:teal,backgroundColor:isToday?'rgba(29,158,117,0.12)':'rgba(29,158,117,0.25)',fill:isToday,borderWidth:isToday?2.5:1.5,borderRadius:isToday?0:6,pointBackgroundColor:teal,pointBorderColor:teal,pointRadius:isToday?2:4,tension:.4}],yMD));
+  window['diaperChart_chart']=diaperChart;
   renderWeightChart();
 }
 
@@ -547,11 +564,14 @@ async function renderWeightChart(){
     if(dob){const aw=Math.max(0,Math.round((new Date(e.ts)-dob)/604800000));p10.push(parseFloat((iWHO(WHO_WEEKS,WHO_P10,aw)*2.20462).toFixed(2)));p50.push(parseFloat((iWHO(WHO_WEEKS,WHO_P50,aw)*2.20462).toFixed(2)));p90.push(parseFloat((iWHO(WHO_WEEKS,WHO_P90,aw)*2.20462).toFixed(2)));}
     else{p10.push(null);p50.push(null);p90.push(null);}
   });
-  if(weightChart)weightChart.destroy();
-  const teal='#1D9E75';
-  const ds=[{label:"Weight",data:lucaData,borderColor:teal,backgroundColor:'rgba(29,158,117,0.12)',fill:true,borderWidth:2.5,pointBackgroundColor:teal,pointRadius:5,tension:.4}];
+  if(weightChart)try{weightChart.destroy();}catch(e){}
+  const wWrap=document.getElementById('weightChart')?.parentNode;
+  if(!wWrap)return;
+  const oldWc=document.getElementById('weightChart');if(oldWc)oldWc.remove();
+  const wc=document.createElement('canvas');wc.id='weightChart';wWrap.appendChild(wc);
+  const wTeal='#1D9E75';
+  const ds=[{label:"Weight",data:lucaData,borderColor:wTeal,backgroundColor:'rgba(29,158,117,0.12)',fill:true,borderWidth:2.5,pointBackgroundColor:wTeal,pointRadius:5,tension:.4}];
   if(dob&&p10.some(v=>v!==null)){ds.unshift({data:p10,borderColor:'rgba(29,158,117,0.3)',borderWidth:1,borderDash:[3,3],pointRadius:0,fill:false,tension:.4},{data:p90,borderColor:'rgba(29,158,117,0.3)',borderWidth:1,borderDash:[3,3],pointRadius:0,backgroundColor:'rgba(29,158,117,0.06)',fill:'-1',tension:.4},{data:p50,borderColor:'rgba(29,158,117,0.5)',borderWidth:1.5,borderDash:[6,3],pointRadius:0,fill:false,tension:.4});}
-  const wc=document.getElementById('weightChart');if(!wc)return;
   weightChart=new Chart(wc,{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11,family:"'Nunito'"},color:'#6b8a92',maxTicksLimit:6}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11,family:"'Nunito'"},color:'#6b8a92',callback:v=>`${v} lbs`},beginAtZero:false}}}});
 }
 

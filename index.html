@@ -455,18 +455,23 @@ window.setRange=(r,el)=>{
   renderDashboard();
 };
 
+function localTodayStr(){const n=new Date();const yr=n.getFullYear();const mo=String(n.getMonth()+1).padStart(2,'0');const dy=String(n.getDate()).padStart(2,'0');return`${yr}-${mo}-${dy}`;}
+
 function getDashWindow(){
-  const now=new Date(),td=now.toISOString().slice(0,10);
+  const now=new Date(),td=localTodayStr();
   if(dashRange==='today')return{from:new Date(td+'T00:00:00'),to:new Date(td+'T23:59:59'),mode:'today'};
-  if(dashRange==='week'){const f=new Date(now);f.setDate(f.getDate()-6);return{from:new Date(f.toISOString().slice(0,10)+'T00:00:00'),to:new Date(td+'T23:59:59'),mode:'week'};}
+  if(dashRange==='week'){const f=new Date(now.getFullYear(),now.getMonth(),now.getDate()-6);return{from:f,to:new Date(td+'T23:59:59'),mode:'week'};}
   if(dashRange==='month'){return{from:new Date(now.getFullYear(),now.getMonth(),1),to:new Date(td+'T23:59:59'),mode:'month'};}
-  if(dashRange==='3mo'){const f=new Date(now);f.setMonth(f.getMonth()-3);return{from:new Date(f.toISOString().slice(0,10)+'T00:00:00'),to:new Date(td+'T23:59:59'),mode:'3mo'};}
+  if(dashRange==='3mo'){const f=new Date(now.getFullYear(),now.getMonth()-3,now.getDate());return{from:f,to:new Date(td+'T23:59:59'),mode:'3mo'};}
   const fv=document.getElementById('dash-from')?.value;const tv=document.getElementById('dash-to')?.value;
   if(!fv||!tv)return{from:new Date(td+'T00:00:00'),to:new Date(td+'T23:59:59'),mode:'today'};
   return{from:new Date(fv+'T00:00:00'),to:new Date(tv+'T23:59:59'),mode:'custom'};
 }
 
 function renderDashboard(){
+  // Helper: get local date string YYYY-MM-DD from any date or ISO string
+  function localKey(val){const d=val instanceof Date?val:new Date(val);const yr=d.getFullYear();const mo=String(d.getMonth()+1).padStart(2,'0');const dy=String(d.getDate()).padStart(2,'0');return`${yr}-${mo}-${dy}`;}
+
   const{from,to,mode}=getDashWindow();
   const filtered=localEntries.filter(e=>{const d=new Date(e.ts);return d>=from&&d<=to;});
   const feeds=filtered.filter(e=>e.type==='feeding');
@@ -500,14 +505,13 @@ function renderDashboard(){
   const dcEl=freshCanvas('diaperChart');
   if(!fcEl||!scEl||!dcEl)return;
   let labels=[],feedData=[],diaperData=[];
-  const len_=n=>Array(n).fill;
   if(mode==='today'){
     for(let h=0;h<24;h++)labels.push(h===0?'12am':h<12?`${h}am`:h===12?'12pm':`${h-12}pm`);
     let cf=0,cd=0;
-    const dk=from.toISOString().slice(0,10);
+    const dk=localKey(from);
     for(let h=0;h<24;h++){
-      cf+=localEntries.filter(e=>e.type==='feeding'&&e.ts.slice(0,10)===dk&&new Date(e.ts).getHours()===h).length;
-      cd+=localEntries.filter(e=>e.type==='diaper'&&e.ts.slice(0,10)===dk&&new Date(e.ts).getHours()===h).length;
+      cf+=localEntries.filter(e=>e.type==='feeding'&&localKey(e.ts)===dk&&new Date(e.ts).getHours()===h).length;
+      cd+=localEntries.filter(e=>e.type==='diaper'&&localKey(e.ts)===dk&&new Date(e.ts).getHours()===h).length;
       feedData.push(cf);diaperData.push(cd);
     }
   }else if(mode==='month'){
@@ -522,10 +526,22 @@ function renderDashboard(){
   }else{
     const diff=Math.round((to-from)/86400000)+1;
     if(diff<=31){
-      for(let i=0;i<diff;i++){const d=new Date(from.getTime()+i*86400000);const dk=d.toISOString().slice(0,10);labels.push(d.toLocaleDateString([],{month:'short',day:'numeric'}));feedData.push(localEntries.filter(e=>e.type==='feeding'&&e.ts.slice(0,10)===dk).length);diaperData.push(localEntries.filter(e=>e.type==='diaper'&&e.ts.slice(0,10)===dk).length);}
+      for(let i=0;i<diff;i++){
+        const d=new Date(from.getFullYear(),from.getMonth(),from.getDate()+i);
+        const dk=localKey(d);
+        labels.push(d.toLocaleDateString([],{month:'short',day:'numeric'}));
+        feedData.push(localEntries.filter(e=>e.type==='feeding'&&localKey(e.ts)===dk).length);
+        diaperData.push(localEntries.filter(e=>e.type==='diaper'&&localKey(e.ts)===dk).length);
+      }
     }else{
-      let cur=new Date(from);
-      while(cur<=to){const we=new Date(Math.min(cur.getTime()+6*86400000,to.getTime()));labels.push(cur.toLocaleDateString([],{month:'short',day:'numeric'}));feedData.push(localEntries.filter(e=>e.type==='feeding'&&new Date(e.ts)>=cur&&new Date(e.ts)<=we).length);diaperData.push(localEntries.filter(e=>e.type==='diaper'&&new Date(e.ts)>=cur&&new Date(e.ts)<=we).length);cur=new Date(cur.getTime()+7*86400000);}
+      let cur=new Date(from.getFullYear(),from.getMonth(),from.getDate());
+      while(cur<=to){
+        const we=new Date(Math.min(cur.getTime()+6*86400000,to.getTime()));
+        labels.push(cur.toLocaleDateString([],{month:'short',day:'numeric'}));
+        feedData.push(localEntries.filter(e=>e.type==='feeding'&&new Date(e.ts)>=cur&&new Date(e.ts)<=we).length);
+        diaperData.push(localEntries.filter(e=>e.type==='diaper'&&new Date(e.ts)>=cur&&new Date(e.ts)<=we).length);
+        cur=new Date(cur.getFullYear(),cur.getMonth(),cur.getDate()+7);
+      }
     }
   }
   const len=labels.length;const isToday=mode==='today';
@@ -658,7 +674,7 @@ window.closeInfo=e=>{
 };
 
 // ── UTILS ─────────────────────────────────────────────────────
-function todayStr(){return new Date().toISOString().slice(0,10);}
+function todayStr(){const n=new Date();const yr=n.getFullYear();const mo=String(n.getMonth()+1).padStart(2,'0');const dy=String(n.getDate()).padStart(2,'0');return`${yr}-${mo}-${dy}`;}
 function fmtTime(iso){return new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
 function fmtDate(iso){return new Date(iso).toLocaleDateString([],{month:'short',day:'numeric'});}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}

@@ -395,9 +395,10 @@ window.saveEdit=async()=>{
   const dateVal=document.getElementById('edit-date').value;
   const timeVal=document.getElementById('edit-time').value;
   const notes=document.getElementById('edit-notes')?.value||'';
-  const[hh,mm]=timeVal.split(':');
-  const d=new Date(dateVal);d.setHours(parseInt(hh),parseInt(mm),0,0);
-  const updates={ts:d.toISOString(),notes};
+  if(!dateVal||!timeVal){showToast('Please set a date and time');return;}
+  // Parse as local time by combining date + time string directly
+  const localDt=new Date(`${dateVal}T${timeVal}:00`);
+  const updates={ts:localDt.toISOString(),notes};
   if(e.type==='feeding'){
     updates.label=document.getElementById('edit-f-type')?.value||'Feeding';
     const amt=document.getElementById('edit-f-amount')?.value||'';
@@ -412,8 +413,10 @@ window.saveEdit=async()=>{
     updates.label=`${dt} diaper`;
     updates.sub=document.getElementById('edit-d-color')?.value||'';
   }
-  await updateDoc(doc(db,'households',householdId,'entries',editDocId),updates);
-  closeEdit();showToast('✓ Entry updated');
+  try{
+    await updateDoc(doc(db,'households',householdId,'entries',editDocId),updates);
+    closeEdit();showToast('✓ Entry updated');
+  }catch(err){showToast('Error saving: '+err.message);}
 };
 
 window.deleteEntry=async()=>{

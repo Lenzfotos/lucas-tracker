@@ -63,19 +63,27 @@ getRedirectResult(auth).then(result=>{
   if(result?.user)console.log('Signed in via redirect');
 }).catch(e=>{if(e.code!=='auth/no-current-user')console.error('Redirect result error:',e);});
 
-const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+provider.setCustomParameters({prompt:'select_account'});
+const GOOGLE_BTN_HTML='<i class="ti ti-brand-google"></i> Sign in with Google';
 
 async function signInGoogle(){
+  // file:// won't work with Firebase Auth — fail loudly instead of silently
+  if(location.protocol==='file:'){
+    showToast('Open this page via http://localhost, not by double-clicking the file.');
+    return;
+  }
   try{
     setBtnLoading('btn-google',true,'Signing in…');
-    if(isMobile){
-      await signInWithRedirect(auth,provider);
-    }else{
-      await signInWithPopup(auth,provider);
-    }
+    await signInWithPopup(auth,provider);
   }catch(e){
-    setBtnLoading('btn-google',false,'<i class="ti ti-brand-google"></i> Sign in with Google');
-    showToast('Sign in failed: '+e.message);
+    // Popup blocked / unsupported (common on mobile) → fall back to redirect
+    if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/cancelled-popup-request'].includes(e.code)){
+      try{await signInWithRedirect(auth,provider);return;}catch(e2){e=e2;}
+    }
+    if(e.code==='auth/popup-closed-by-user'){setBtnLoading('btn-google',false,GOOGLE_BTN_HTML);return;}
+    setBtnLoading('btn-google',false,GOOGLE_BTN_HTML);
+    showToast('Sign in failed ('+(e.code||'error')+'): '+e.message);
+    console.error('Google sign-in error:',e);
   }
 }
 
@@ -1195,12 +1203,5 @@ input,select,textarea{font-size:16px !important}
 
 <div class="toast" id="toast"></div>
 
-<script type="module">
-import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-const auth=getAuth();
-onAuthStateChanged(auth,user=>{
-  if(user){const p=document.getElementById('user-photo');if(p)p.src=user.photoURL||'';const n=document.getElementById('user-name');if(n)n.textContent=user.displayName||'';const e=document.getElementById('user-email');if(e)e.textContent=user.email||'';}
-});
-</script>
 </body>
 </html>

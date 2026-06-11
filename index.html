@@ -64,11 +64,11 @@ getRedirectResult(auth).then(result=>{
 }).catch(e=>{if(e.code!=='auth/no-current-user')console.error('Redirect result error:',e);});
 
 const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-window.signInGoogle=async()=>{
+
+async function signInGoogle(){
   try{
     setBtnLoading('btn-google',true,'Signing in…');
     if(isMobile){
-      // Mobile Safari blocks popups — use redirect instead
       await signInWithRedirect(auth,provider);
     }else{
       await signInWithPopup(auth,provider);
@@ -77,7 +77,14 @@ window.signInGoogle=async()=>{
     setBtnLoading('btn-google',false,'<i class="ti ti-brand-google"></i> Sign in with Google');
     showToast('Sign in failed: '+e.message);
   }
-};
+}
+
+// Attach all button handlers via JS (not onclick attrs) to avoid module scope issues
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('btn-google')?.addEventListener('click',signInGoogle);
+  document.getElementById('btn-create-hh')?.addEventListener('click',()=>createHousehold());
+  document.getElementById('btn-join-hh')?.addEventListener('click',()=>joinHousehold());
+});
 window.signOutUser=async()=>{if(!confirm('Sign out?'))return;if(unsubEntries)unsubEntries();if(unsubHousehold)unsubHousehold();await signOut(auth);localEntries=[];membersList=[];householdId=null;householdData=null;};
 
 // ── HOUSEHOLD ────────────────────────────────────────────────
@@ -836,7 +843,7 @@ input,select,textarea{font-size:16px !important}
     <div class="auth-logo"><i class="ti ti-heart"></i></div>
     <div class="auth-title">Baby Tracker</div>
     <div class="auth-sub">Log feedings, sleep & diapers together with your caregiving team</div>
-    <button class="google-btn" id="btn-google" onclick="signInGoogle()"><i class="ti ti-brand-google"></i> Sign in with Google</button>
+    <button class="google-btn" id="btn-google"><i class="ti ti-brand-google"></i> Sign in with Google</button>
   </div>
 </div>
 
@@ -854,14 +861,14 @@ input,select,textarea{font-size:16px !important}
       <div class="form-row"><label class="form-label">Baby's name</label><input class="form-input" type="text" id="ob-baby-name" placeholder="e.g. Luca"/></div>
       <div class="form-row"><label class="form-label">Date of birth</label><input class="form-input" type="date" id="ob-dob"/></div>
       <div class="form-row"><label class="form-label">Sex</label><select class="form-input" id="ob-sex"><option value="">Select…</option><option value="male">Male</option><option value="female">Female</option></select></div>
-      <button class="submit-btn" id="btn-create-hh" onclick="createHousehold()"><i class="ti ti-plus"></i> Create household</button>
+      <button class="submit-btn" id="btn-create-hh"><i class="ti ti-plus"></i> Create household</button>
     </div>
     <div class="divider-text">or</div>
     <div class="onboard-card" style="margin-top:8px">
       <div class="onboard-title"><i class="ti ti-door-enter"></i> Join a household</div>
       <div class="onboard-sub">Enter the 6-character invite code shared by the owner.</div>
       <div class="form-row"><label class="form-label">Invite code</label><input class="form-input" type="text" id="ob-invite-code" placeholder="e.g. AB12CD" style="text-transform:uppercase;letter-spacing:2px;font-size:18px !important;font-weight:700;text-align:center"/></div>
-      <button class="submit-btn" id="btn-join-hh" onclick="joinHousehold()" style="background:var(--teal-light);color:var(--teal);border:1.5px solid var(--teal)"><i class="ti ti-door-enter"></i> Join household</button>
+      <button class="submit-btn" id="btn-join-hh" style="background:var(--teal-light);color:var(--teal);border:1.5px solid var(--teal)"><i class="ti ti-door-enter"></i> Join household</button>
     </div>
   </div>
 </div>

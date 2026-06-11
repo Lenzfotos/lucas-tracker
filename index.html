@@ -654,10 +654,6 @@ window.showInfo=type=>{const d=INFO_DATA[type];if(!d)return;document.getElementB
 window.closeInfo=e=>{if(e&&e.target!==document.getElementById('infoOverlay'))return;document.getElementById('infoOverlay').classList.remove('show');document.body.style.overflow='';};
 window.clearLocalData=()=>showToast('Data is in Firebase — delete from History instead.');
 
-// Init active timer check after household loads
-const _origLoadHousehold=loadHousehold;
-async function loadHousehold(){await _origLoadHousehold.call(this);checkActiveTimer();}
-
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}

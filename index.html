@@ -72,7 +72,6 @@ provider.setCustomParameters({prompt:'select_account'});
 const GOOGLE_BTN_HTML='<i class="ti ti-brand-google"></i> Sign in with Google';
 
 async function signInGoogle(){
-  console.log('[auth] Sign-in button clicked');
   // file:// won't work with Firebase Auth — fail loudly instead of silently
   if(location.protocol==='file:'){
     showToast('Open this page via http://localhost, not by double-clicking the file.');
@@ -80,23 +79,18 @@ async function signInGoogle(){
   }
   try{
     setBtnLoading('btn-google',true,'Signing in…');
-    console.log('[auth] Opening Google popup…');
     await signInWithPopup(auth,provider);
-    console.log('[auth] Popup sign-in succeeded');
   }catch(e){
-    console.error('[auth] Popup error:',e.code,e.message);
     // Popup blocked / unsupported (common on mobile) → fall back to redirect
     if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/cancelled-popup-request'].includes(e.code)){
-      try{console.log('[auth] Falling back to redirect…');await signInWithRedirect(auth,provider);return;}catch(e2){e=e2;console.error('[auth] Redirect error:',e2.code,e2.message);}
+      try{await signInWithRedirect(auth,provider);return;}catch(e2){e=e2;}
     }
-    if(e.code==='auth/popup-closed-by-user'){setBtnLoading('btn-google',false,GOOGLE_BTN_HTML);showToast('Popup closed before sign-in finished');return;}
+    if(e.code==='auth/popup-closed-by-user'){setBtnLoading('btn-google',false,GOOGLE_BTN_HTML);return;}
     setBtnLoading('btn-google',false,GOOGLE_BTN_HTML);
     showToast('Sign in failed ('+(e.code||'error')+'): '+e.message);
     console.error('Google sign-in error:',e);
   }
 }
-// Expose for manual testing from the DevTools console: __signIn()
-window.__signIn=signInGoogle;
 
 // ── PREVIEW MODE (sample data, no Firebase) ───────────────────
 function genPreviewEntries(){

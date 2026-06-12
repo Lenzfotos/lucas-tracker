@@ -26,7 +26,7 @@ function tsFromInputs(dv,tv){if(!dv||!tv)return new Date().toISOString();return 
 function currentTimeStr(){const n=new Date();return`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;}
 function fmtTime(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
 function fmtDate(ts){return new Date(ts).toLocaleDateString([],{month:'short',day:'numeric'});}
-function minToHM(m){if(!m)return'—';const h=Math.floor(m/60),mn=Math.round(m%60);return h>0?`${h}h ${mn}m`:`${mn}m`;}
+function minToHM(m){m=Number(m)||0;if(!m)return'—';const h=Math.floor(m/60),mn=Math.round(m%60);return h>0?`${h}h ${mn}m`:`${mn}m`;}
 function showToast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
 function setBtnLoading(id,loading,html){const el=document.getElementById(id);if(!el)return;el.disabled=loading;el.innerHTML=loading?'<span class="spinner"></span> '+html.replace(/<[^>]+>/g,''):html;}
 function updateEntryCount(){const el=document.getElementById('settings-entry-count');if(el)el.textContent=`${localEntries.length} entr${localEntries.length===1?'y':'ies'} in household`;}
@@ -410,7 +410,7 @@ function sessionRowHTML(g){
   const items=g.items.slice().sort((a,b)=>new Date(a.ts)-new Date(b.ts));
   const first=items[0],last=items[items.length-1];
   const totalOz=items.reduce((s,e)=>s+ozOf(e),0);
-  const totalMin=items.reduce((s,e)=>s+(e.duration||0),0);
+  const totalMin=items.reduce((s,e)=>s+(Number(e.duration)||0),0);
   const range=`${fmtTime(first.ts)} – ${fmtTime(last.ts)}`;
   let details=items.map(e=>`<div class="detail-row"><span>${fmtTime(e.ts)} · ${e.label||'Feeding'}</span><span>${ozOf(e)?fmtOz(ozOf(e))+' oz':(e.duration?e.duration+' min':'—')}</span></div>`).join('');
   details+=`<div class="detail-row" style="font-weight:800;color:var(--teal)"><span>Total eaten</span><span>${fmtOz(totalOz)} oz${totalMin?` · ${minToHM(totalMin)}`:''}</span></div>`;
@@ -564,7 +564,7 @@ function allowedGrans(days){
 }
 function updateGranOptions(){
   const{from,to}=getDashWindow();
-  const days=Math.round((to-from)/86400000)+1;
+  const days=Math.round((to-from)/86400000); // inclusive day-span ('to' is 23:59:59)
   const allowed=allowedGrans(days);
   [['gran-feed',()=>feedGranularity,v=>feedGranularity=v],
    ['gran-sleep',()=>sleepGranularity,v=>sleepGranularity=v],
@@ -622,7 +622,7 @@ function buildBuckets(from,to,granularity,entryFilter){
       }
     }
   }else if(granularity==='day'){
-    const diff=Math.round((to-from)/86400000)+1;
+    const diff=Math.round((to-from)/86400000); // inclusive day count ('to' is 23:59:59)
     for(let i=0;i<diff;i++){
       const d=new Date(from.getFullYear(),from.getMonth(),from.getDate()+i);
       const dk=localKey(d);
@@ -659,8 +659,8 @@ function renderDashboard(){
   const feedCount=countFeedingUnits(actualFeeds); // a grouped session counts as one feeding
   const diapers=filtered.filter(e=>e.type==='diaper');
   const totalOz=actualFeeds.reduce((s,e)=>{const m=String(e.sub||'').match(/^([\d.]+)\s*oz/);return s+(m?parseFloat(m[1]):0);},0);
-  const totalFeedMins=actualFeeds.reduce((s,e)=>s+(e.duration||0),0);
-  const diffDays=Math.max(1,Math.round((to-from)/86400000)+1);
+  const totalFeedMins=actualFeeds.reduce((s,e)=>s+(Number(e.duration)||0),0);
+  const diffDays=Math.max(1,Math.round((to-from)/86400000)); // 'to' is end-of-day, so this already counts inclusive days
 
   document.getElementById('stat-feeds').textContent=feedCount||'0';
   document.getElementById('stat-oz').textContent=totalOz>0?totalOz.toFixed(1):'—';
@@ -695,7 +695,7 @@ function renderDashboard(){
     let gran=granularityState==='auto'?autoGranularity(mode):granularityState;
     // Hourly stays readable up to ~2 weeks; past that it's too dense, so fall back to daily.
     const MAX_HOURLY_DAYS=14;
-    const rangeDays=Math.round((to-from)/86400000)+1;
+    const rangeDays=Math.round((to-from)/86400000); // inclusive day-span ('to' is 23:59:59)
     if(gran==='hour'&&rangeDays>MAX_HOURLY_DAYS)gran='day';
     const{labels,buckets}=buildBuckets(from,to,gran,entryFilterFn);
     const isHour=gran==='hour';
@@ -819,7 +819,7 @@ function getExportData(){
 }
 window.doExport=fmt=>{if(!isOwner){showToast('Export is owner only');return;}const data=getExportData();if(!data||!data.length){showToast('No data for selected filters');return;}if(fmt==='csv')exportCSV(data);else exportPDF(data);};
 function exportCSV(data){let csv='';['feeding','sleep','diaper'].forEach(cat=>{if(!exportCats.has(cat))return;const rows=data.filter(e=>e.type===cat);if(!rows.length)return;const hdrs={feeding:'Date,Time,End Time,Type,Amount(oz),Duration(min),Attempted,Notes,LoggedBy',sleep:'Date,Time,Event,Location,Quality,Notes,LoggedBy',diaper:'Date,Time,Type,Color,Consistency,Notes,LoggedBy'};csv+=`${cat.toUpperCase()}\n${hdrs[cat]}\n`;rows.forEach(e=>{const d=new Date(e.ts);const endT=e.tsEnd?fmtTime(e.tsEnd):'';csv+=`${d.toLocaleDateString()},${fmtTime(e.ts)},${endT},"${e.label}","${e.sub||''}","${e.duration||''}","${e.attempted?'Yes':''}","${e.notes||''}","${e.loggedBy||''}"\n`;});csv+='\n';});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='baby-tracker-export.csv';a.click();showToast('CSV downloaded!');}
-function exportPDF(data){const bn=householdData?.babyName||'Baby';const feeds=data.filter(e=>e.type==='feeding'&&!e.attempted),diapers=data.filter(e=>e.type==='diaper');const totalOz=feeds.reduce((s,e)=>{const m=String(e.sub||'').match(/^([\d.]+)\s*oz/);return s+(m?parseFloat(m[1]):0);},0);const totalMins=feeds.reduce((s,e)=>s+(e.duration||0),0);let rows='';data.forEach(e=>{const d=new Date(e.ts);rows+=`<tr><td>${{feeding:'🍼',sleep:'😴',diaper:'💧'}[e.type]||''}</td><td>${d.toLocaleDateString()}</td><td>${fmtTime(e.ts)}</td><td>${e.label}</td><td>${[e.sub,e.notes].filter(Boolean).join(' · ')}</td><td>${e.loggedBy||'—'}</td></tr>`;});const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${bn} Tracker</title><style>body{font-family:Arial,sans-serif;color:#1a2e35;padding:30px}h1{color:#1D9E75}.box{display:inline-block;background:#E1F5EE;border-radius:8px;padding:12px 20px;margin:4px;text-align:center}.v{font-size:22px;font-weight:700;color:#1D9E75}.l{font-size:10px;color:#085041;text-transform:uppercase}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px}th{background:#1D9E75;color:#fff;padding:8px}td{padding:7px 8px;border-bottom:1px solid #c8e6de}tr:nth-child(even)td{background:#f0f7f5}@media print{button{display:none}}</style></head><body><h1>${bn}'s Tracker</h1><p style="color:#6b8a92;font-size:13px">Generated ${new Date().toLocaleString()}</p><div style="margin:16px 0"><div class="box"><div class="v">${feeds.length}</div><div class="l">Feedings</div></div><div class="box"><div class="v">${totalOz>0?totalOz.toFixed(1):'—'}</div><div class="l">Oz</div></div><div class="box"><div class="v">${totalMins>0?minToHM(totalMins):'—'}</div><div class="l">Feed time</div></div><div class="box"><div class="v">${diapers.length}</div><div class="l">Diapers</div></div></div><table><thead><tr><th></th><th>Date</th><th>Time</th><th>Event</th><th>Details</th><th>By</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`;const w=window.open('','_blank');w.document.write(html);w.document.close();showToast('PDF ready — Print to save!');}
+function exportPDF(data){const bn=householdData?.babyName||'Baby';const feeds=data.filter(e=>e.type==='feeding'&&!e.attempted),diapers=data.filter(e=>e.type==='diaper');const totalOz=feeds.reduce((s,e)=>{const m=String(e.sub||'').match(/^([\d.]+)\s*oz/);return s+(m?parseFloat(m[1]):0);},0);const totalMins=feeds.reduce((s,e)=>s+(Number(e.duration)||0),0);let rows='';data.forEach(e=>{const d=new Date(e.ts);rows+=`<tr><td>${{feeding:'🍼',sleep:'😴',diaper:'💧'}[e.type]||''}</td><td>${d.toLocaleDateString()}</td><td>${fmtTime(e.ts)}</td><td>${e.label}</td><td>${[e.sub,e.notes].filter(Boolean).join(' · ')}</td><td>${e.loggedBy||'—'}</td></tr>`;});const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${bn} Tracker</title><style>body{font-family:Arial,sans-serif;color:#1a2e35;padding:30px}h1{color:#1D9E75}.box{display:inline-block;background:#E1F5EE;border-radius:8px;padding:12px 20px;margin:4px;text-align:center}.v{font-size:22px;font-weight:700;color:#1D9E75}.l{font-size:10px;color:#085041;text-transform:uppercase}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px}th{background:#1D9E75;color:#fff;padding:8px}td{padding:7px 8px;border-bottom:1px solid #c8e6de}tr:nth-child(even)td{background:#f0f7f5}@media print{button{display:none}}</style></head><body><h1>${bn}'s Tracker</h1><p style="color:#6b8a92;font-size:13px">Generated ${new Date().toLocaleString()}</p><div style="margin:16px 0"><div class="box"><div class="v">${feeds.length}</div><div class="l">Feedings</div></div><div class="box"><div class="v">${totalOz>0?totalOz.toFixed(1):'—'}</div><div class="l">Oz</div></div><div class="box"><div class="v">${totalMins>0?minToHM(totalMins):'—'}</div><div class="l">Feed time</div></div><div class="box"><div class="v">${diapers.length}</div><div class="l">Diapers</div></div></div><table><thead><tr><th></th><th>Date</th><th>Time</th><th>Event</th><th>Details</th><th>By</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`;const w=window.open('','_blank');w.document.write(html);w.document.close();showToast('PDF ready — Print to save!');}
 
 // ── INFO MODAL ───────────────────────────────────────────────
 const INFO_DATA={feeding:{icon:'ti-tool-kitchen-2',title:'Feeding Benchmark',body:`<strong>Target: 8–12 feedings per day</strong> for newborns (0–3 months).<br><br>The AAP recommends feeding on demand — typically every 1.5–3 hours for breastfed and every 2–4 hours for formula-fed newborns. Feeding duration of 10–20 minutes per breast is typical.`,source:`Source: AAP — <a href="https://www.healthychildren.org/English/ages-stages/baby/feeding-nutrition/Pages/How-Often-and-How-Much-Should-Your-Baby-Eat.aspx" target="_blank">How Often and How Much Should Your Baby Eat?</a>`},sleep:{icon:'ti-moon',title:'Sleep Benchmark',body:`<strong>Target: 14–17 hours per day</strong> for newborns (0–3 months).<br><br>The NSF recommends 14–17 hours of total sleep per 24 hours for newborns, spread across multiple periods.`,source:`Source: NSF — <a href="https://www.sleepfoundation.org/how-sleep-works/how-much-sleep-do-we-really-need" target="_blank">How Much Sleep Do We Really Need?</a>`},diaper:{icon:'ti-droplet',title:'Diaper Benchmark',body:`<strong>Target: 6–8 wet diapers per day</strong> after the first week. This is the AAP's key indicator of adequate hydration and feeding.`,source:`Source: AAP — <a href="https://www.healthychildren.org/English/ages-stages/baby/feeding-nutrition/Pages/Wet-Diapers-and-Newborn-Urine-Output.aspx" target="_blank">Wet Diapers and Newborn Urine Output</a>`},weight:{icon:'ti-barbell',title:'Growth Chart',body:`<strong>WHO Child Growth Standards</strong> — 10th, 50th, and 90th percentile bands.<br><br>The shaded band covers 80% of healthy babies. Being outside does not necessarily indicate a problem — discuss with your pediatrician.`,source:`Source: WHO — <a href="https://www.who.int/tools/child-growth-standards/standards/weight-for-age" target="_blank">WHO Child Growth Standards</a>`}};
